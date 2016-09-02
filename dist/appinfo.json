@@ -1,0 +1,10 @@
+{
+  "id": "com.gailit.wemo",
+  "version": "0.0.1",
+  "vendor": "Broc Gailit",
+  "type": "web",
+  "main": "index.html",
+  "title": "wemo",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png"
+}
