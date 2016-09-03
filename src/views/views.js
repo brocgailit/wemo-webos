@@ -1,17 +1,20 @@
 var kind = require('enyo/kind'),
 	Ajax = require('enyo/Ajax'),
+	Service = require('enyo-webos/LunaService'),
 	Button = require('moonstone/Button'),
     Panels = require('moonstone/Panels'),
-    Item = require('moonstone/Item');
+    Item = require('moonstone/Item'),
+	Spinner = require('moonstone/Spinner');
 
 module.exports = kind({
 	name: "myapp.MainView",
 	classes: "moon enyo-fit",
 	components: [
-		{ name: 'loadingIndicator', content: 'Not loaded ...', allowHtml: true},
+		{ name: 'service', kind: Service, service: "luna://com.gailit.wemo.service", method: "devices", onComplete: "onComplete"},
+		{ name: 'loadingIndicator', content: 'Not loaded ...'},
 		{name: "panels", kind: Panels, pattern: "alwaysviewing", classes: "enyo-fit", components: [
 			{name:'first', title: "wemo", components: [
-				{ kind: Button, content: 'Find Devices', ontap: 'fetch'},
+				{ kind: Button, content: 'Find Devices', ontap: 'callService'}
 
 			]},
 			{name: 'devices', title: "Devices"}
@@ -21,42 +24,40 @@ module.exports = kind({
 		this.$.panels.next();
 		return true;
 	},
-	fetch: function() {
-		this.$.loadingIndicator.set('content', 'Loading items ...');
-		var ajax = new Ajax({
-			url: 'http://192.168.1.6:3000/api/devices'
-		});
-		ajax.go();
-		ajax.response(this, 'gotResponse');
-	},
 	toggleSwitch: function(sender, event) {
-		this.$.loadingIndicator.set('content', 'http://192.168.1.6:3000/api/devices/'+sender.macAddress);
-		var ajax = new Ajax({
-			url: 'http://192.168.1.6:3000/api/devices/'+sender.macAddress
-		});
-		ajax.go();
-		ajax.response(this, 'message');
-
+		this.$.service.send({macAddress: sender.macAddress});
 	},
 	message: function(){
 		//this.$.loadingIndicator.set('content', 'toggled the switch');
 	},
-	gotResponse: function(sender, inResponse) {
+	addDevices: function(devices) {
 		var i;
 
 		this.$.devices.destroyClientControls();
 
-		for(i = 0; i < inResponse.devices.length; i++) {
+		for(i = 0; i < devices.length; i++) {
 			this.$.devices.createComponent({
 				kind: Item, 
-				content: inResponse.devices[i].friendlyName,
-				macAddress: inResponse.devices[i].macAddress,
-				ontap: 'toggleSwitch'
+				content: devices[i].friendlyName,
+				macAddress: devices[i].macAddress,
+				ontap: 'callService'
 			}, {owner: this});
 			this.render();
 		}
-		this.$.loadingIndicator.set('content', '');
+
 		this.next();
 		return true;
+	},
+	callService: function(inSender, inEvent) {
+		this.$.loadingIndicator.set('content', 'Finding devices ...');
+		this.$.service.send({macAddress: inSender.macAddress});
+	},
+	onComplete: function(inSender, inResponse) {
+		if (inResponse.returnValue) {
+			this.$.loadingIndicator.set('content', inResponse.devices.length);
+			this.addDevices(inResponse.devices);
+		} else {
+			this.$.loadingIndicator.set('content', 'Oops!  There is a problem with this service');
+		}
 	}
 });
